@@ -28,6 +28,16 @@ jobs:
           echo "DB_USERNAME=${{ secrets.DB_USERNAME }}" >> $GITHUB_ENV
           echo "DB_PASSWORD=${{ secrets.DB_PASSWORD }}" >> $GITHUB_ENV
 
+    - name: Update application.yml
+      run: |
+          cat > src/main/resources/application-dev.yml <<EOL
+          spring:
+            datasource:
+              url: ${DB_URL}
+              username: ${DB_USERNAME}
+              password: ${DB_PASSWORD}
+          EOL
+
     - name: Build with Gradle
       run: ./gradlew clean build
 
@@ -50,7 +60,7 @@ jobs:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
         region: ${{ env.AWS_REGION }}
-        application_name: board
-        environment_name: Board-env
+        application_name: my-board
+        environment_name: My-board-env
         version_label: github-action-${{steps.current-time.outputs.formattedTime}}
         deployment_package: deploy/deploy.zip
