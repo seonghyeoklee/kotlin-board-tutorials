@@ -33,7 +33,7 @@ jobs:
           cat > src/main/resources/application-dev.yml <<EOL
           spring:
             datasource:
-              url: ${DB_URL}
+              url: jdbc:mysql://${DB_URL}:3306/board?useSSL=false&serverTimezone=Asia/Seoul
               username: ${DB_USERNAME}
               password: ${DB_PASSWORD}
           EOL
