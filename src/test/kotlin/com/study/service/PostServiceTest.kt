@@ -1,10 +1,13 @@
 package com.study.service
 
+import com.study.domain.Comment
 import com.study.domain.Post
 import com.study.exception.PostNotDeletableException
 import com.study.exception.PostNotFoundException
 import com.study.exception.PostNotUpdatableException
+import com.study.repository.CommentRepository
 import com.study.repository.PostRepository
+import com.study.repository.TagRepository
 import com.study.service.dto.PostCreateRequestDto
 import com.study.service.dto.PostSearchRequestDto
 import com.study.service.dto.PostUpdateRequestDto
@@ -22,6 +25,8 @@ import org.springframework.data.repository.findByIdOrNull
 class PostServiceTest(
     private val postService: PostService,
     private val postRepository: PostRepository,
+    private val commentRepository: CommentRepository,
+    private val tagRepository: TagRepository,
 ) : BehaviorSpec({
     beforeSpec {
         postRepository.saveAll(
@@ -57,9 +62,27 @@ class PostServiceTest(
                 post?.createdBy shouldBe "harris"
             }
         }
+        When("태그가 추가되면") {
+            val postId = postService.createPost(
+                PostCreateRequestDto(
+                    title = "제목",
+                    content = "내용",
+                    createdBy = "harris",
+                    tags = listOf("tag1", "tag2")
+                )
+            )
+            then("태그가 정상적으로 추가됨을 확인한다.") {
+                val tags = tagRepository.findByPostId(postId)
+                tags.size shouldBe 2
+                tags[0].name shouldBe "tag1"
+                tags[1].name shouldBe "tag2"
+            }
+        }
     }
     given("게시글 수정시") {
-        val saved = postRepository.save(Post(title = "title", content = "content", createdBy = "harris"))
+        val saved = postRepository.save(
+            Post(title = "title", content = "content", createdBy = "harris", tags = listOf("tag1", "tag2"))
+        )
         When("정상 수정시") {
             val updatedId = postService.updatePost(
                 saved.id,
@@ -105,6 +128,36 @@ class PostServiceTest(
                 }
             }
         }
+        When("태그가 수정되었을 때") {
+            val updatedId = postService.updatePost(
+                saved.id,
+                PostUpdateRequestDto(
+                    title = "update title",
+                    content = "update content",
+                    updatedBy = "harris",
+                    tags = listOf("tag1", "tag2", "tag3")
+                )
+            )
+            then("정상적으로 수정됨을 확인한다.") {
+                val tags = tagRepository.findByPostId(updatedId)
+                tags.size shouldBe 3
+                tags[2].name shouldBe "tag3"
+            }
+            then("태그 순서가 변경되었을때 정상적으로 변경됨을 확인한다.") {
+                postService.updatePost(
+                    saved.id,
+                    PostUpdateRequestDto(
+                        title = "update title",
+                        content = "update content",
+                        updatedBy = "harris",
+                        tags = listOf("tag3", "tag2", "tag1")
+                    )
+                )
+                val tags = tagRepository.findByPostId(updatedId)
+                tags.size shouldBe 3
+                tags[2].name shouldBe "tag1"
+            }
+        }
     }
     given("게시글 삭제시") {
         val saved = postRepository.save(Post(title = "title", content = "content", createdBy = "harris"))
@@ -136,6 +189,21 @@ class PostServiceTest(
         When("게시글이 없을 때") {
             then("게시글을 찾을수 없다라는 예외가 발생한다.") {
                 shouldThrow<PostNotFoundException> { postService.getPost(9999L) }
+            }
+        }
+        When("댓글 추가시") {
+            commentRepository.save(Comment(content = "댓글 내용1", post = saved, createdBy = "댓글 작성자"))
+            commentRepository.save(Comment(content = "댓글 내용2", post = saved, createdBy = "댓글 작성자"))
+            commentRepository.save(Comment(content = "댓글 내용3", post = saved, createdBy = "댓글 작성자"))
+            val post = postService.getPost(saved.id)
+            then("댓글이 함께 조회됨을 확인한다.") {
+                post.comments.size shouldBe 3
+                post.comments[0].content shouldBe "댓글 내용1"
+                post.comments[1].content shouldBe "댓글 내용2"
+                post.comments[2].content shouldBe "댓글 내용3"
+                post.comments[0].createdBy shouldBe "댓글 작성자"
+                post.comments[1].createdBy shouldBe "댓글 작성자"
+                post.comments[2].createdBy shouldBe "댓글 작성자"
             }
         }
     }
